@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions: read-all
+
+jobs:
+  Build:
+    uses: ./.github/workflows/ci.yml
+  Release:
+    runs-on:
+      - ubuntu-24.04
+    permissions:
+      contents: write
+    needs:
+      - Build
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@eb238b55efaa70779f274895e782ed17c84f2895 # v2.6.1
+        with:
+          egress-policy: audit
+
+      # Download and unpack all release artifacts
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+
+      # Create release tarballs
+      - name: Tar x86_64 artifacts
+        run: |
+          name=aperf-${{ github.ref_name }}-x86_64
+          mkdir "$name"
+          tar -zxvf x86_64-release-artifacts/artifacts.tar.gz -C "$name"
+          tar -zcvf "$name".tar.gz "$name"
+      - name: Tar aarch64 artifacts
+        run: |
+          name=aperf-${{ github.ref_name }}-aarch64
+          mkdir "$name"
+          tar -zxvf aarch64-release-artifacts/artifacts.tar.gz -C "$name"
+          tar -zcvf "$name".tar.gz "$name"
+
+      # Attach them to the release
+      - name: Upload x86_64 artifacts.
+        uses: svenstaro/upload-release-action@1beeb572c19a9242f4361f4cee78f8e0d9aec5df # v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./aperf-${{ github.ref_name }}-x86_64.tar.gz
+          tag: ${{ github.ref }}
+          asset_name: aperf-${{ github.ref_name }}-x86_64.tar.gz
+      - name: Upload aarch64 artifacts
+        uses: svenstaro/upload-release-action@1beeb572c19a9242f4361f4cee78f8e0d9aec5df # v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./aperf-${{ github.ref_name }}-aarch64.tar.gz
+          tag: ${{ github.ref }}
+          asset_name: aperf-${{ github.ref_name }}-aarch64.tar.gz
